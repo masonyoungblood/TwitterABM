@@ -15,7 +15,7 @@
 #' @param diversity_TF Whether you want to return the Simpson's diversity index from each timepoint (TRUE/FALSE).
 #'
 #' @return Returns one object or a list of two objects, depending on the values for sum_stats_TF and diversity_TF.
-#' @import data.table dqrng truncnorm hillR vegan
+#' @import data.table truncnorm hillR vegan
 #' @export
 twitter_ABM <- function(N = 1000, overall_activity, mu = 0.3, cont_bias = 0, dem_bias = 0, freq_bias = 1, age_dep = 1, obs_follower_counts, obs_activity_levels, obs_init_tweets, sum_stats_TF = TRUE, diversity_TF = FALSE){
   #optimization notes:
@@ -25,7 +25,6 @@ twitter_ABM <- function(N = 1000, overall_activity, mu = 0.3, cont_bias = 0, dem
       #matrix version is not faster than data table
     #wrswoR::sample_int_crank only does weighted sampling without replacement, and couldn't be used
       #even when used it does not appear to be significantly faster than base R with replacement
-    #dqrng was used for unweighted sampling (does not allow probabilities yet)
     #rtruncnorm is fastest option with high sample sizes
 
   #remove first timestep of overall_activity, which is captured by obs_init_tweets
@@ -35,13 +34,13 @@ twitter_ABM <- function(N = 1000, overall_activity, mu = 0.3, cont_bias = 0, dem
   t_step <- length(overall_activity)
 
   #generate data table of users
-  users <- data.table::data.table(id = 1:N, followers = c(abs(scale(dqrng::dqsample(obs_follower_counts, N, replace = TRUE))+1))^dem_bias, activity_level = dqrng::dqsample(obs_activity_levels, N, replace = TRUE))
+  users <- data.table::data.table(id = 1:N, followers = c(abs(scale(sample(obs_follower_counts, N, replace = TRUE))+1))^dem_bias, activity_level = sample(obs_activity_levels, N, replace = TRUE))
 
   #pre-allocate data table for tweets
   nrow_allocation <- sum(overall_activity)
   tweets <- data.table::data.table(user = rep(0, nrow_allocation), n_times = rep(0, nrow_allocation), age = rep(0, nrow_allocation), content = rep(0, nrow_allocation), followers = rep(0, nrow_allocation))
   data.table::set(tweets, i = 1:length(obs_init_tweets), j = "user", value = sample(users$id, length(obs_init_tweets), replace = FALSE, prob = users$activity_level))
-  data.table::set(tweets, i = 1:length(obs_init_tweets), j = "n_times", value = dqrng::dqsample(obs_init_tweets, length(obs_init_tweets), replace = TRUE))
+  data.table::set(tweets, i = 1:length(obs_init_tweets), j = "n_times", value = sample(obs_init_tweets, length(obs_init_tweets), replace = TRUE))
   data.table::set(tweets, i = 1:length(obs_init_tweets), j = "age", value = 1)
   data.table::set(tweets, i = 1:length(obs_init_tweets), j = "content", value = truncnorm::rtruncnorm(length(obs_init_tweets), a = 0, b = Inf, mean = 1, sd = 1)^cont_bias)
   data.table::set(tweets, i = 1:length(obs_init_tweets), j = "followers", value = users$followers[tweets$user])

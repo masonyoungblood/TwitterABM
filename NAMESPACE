@@ -2,7 +2,6 @@
 
 export(twitter_ABM)
 import(data.table)
-import(dqrng)
 import(hillR)
 import(truncnorm)
 import(vegan)
