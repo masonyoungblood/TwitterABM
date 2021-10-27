@@ -9,4 +9,4 @@ Install the package using the following code in R:
 
 You can access the documentation of the ABM function by entering `?twitter_ABM` in R.
 
-The `example` folder includes the analysis scripts and data for the [study that this model was developed for](https://osf.io/jnvyf/). The three analysis scripts are labelled in the order in which they should be run, and the output files from each script are available in respective subfolders in `data`. The only saved model output that we excluded from the repository (too large) is the full best fitting model, which can be run locally using code from `3_glmm.R`.
+The `example` folder includes the analysis scripts and data for the [study that this model was developed for](https://psyarxiv.com/2jksg/). The three analysis scripts are labelled in the order in which they should be run, and the output files from each script are available in respective subfolders in `data`. The only saved model output that we excluded from the repository (too large) is the full best fitting model, which can be run locally using code from `3_glmm.R`.

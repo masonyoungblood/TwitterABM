@@ -80,8 +80,8 @@ performance::icc(day_model) #0.098
 performance::icc(hour_model) #0.036
 
 #compare model fit
-AIC(user, day, hour)
-lmtest::lrtest(user, day, hour)
+AIC(user_model, day_model, hour_model)
+lmtest::lrtest(user_model, day_model, hour_model)
 
 #add length as control variable
 length_model <- lme4::glmer(retweets ~ scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
