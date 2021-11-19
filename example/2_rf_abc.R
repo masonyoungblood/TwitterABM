@@ -32,6 +32,12 @@ for(i in 1:length(files)){
 #load the observed tweet distribution
 load("data/tweet_distribution.RData")
 
+#calculate observed summary statistics
+obs_stats <- data.frame(prop_rare = length(which(tweet_distribution == 1))/sum(tweet_distribution),
+                        prop_common = max(tweet_distribution)/sum(tweet_distribution),
+                        hill_1 = hillR::hill_taxa(tweet_distribution, q = 1),
+                        hill_2 = hillR::hill_taxa(tweet_distribution, q = 2))
+
 #detect number of cores for parallelization
 ncores <- detectCores()-1
 
