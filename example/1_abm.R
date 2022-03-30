@@ -10,6 +10,7 @@ set.seed(12345)
 N <- 341676
 load("data/obs_user_data.RData")
 load("data/obs_init_tweets.RData")
+load("data/overall_activity.RData")
 
 #wrap twitter_ABM in a simpler function for slurm
 twitter_ABM_slurm <- function(cont_bias, dem_bias, freq_bias, age_dep){
