@@ -1,6 +1,7 @@
 #load packages
 library(TwitterABM)
 library(rslurm)
+library(data.table)
 
 #set seed
 set.seed(12345)
