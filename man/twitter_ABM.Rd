@@ -7,13 +7,11 @@
 twitter_ABM(
   N = 1000,
   overall_activity,
-  mu = 0.3,
   cont_bias = 0,
   dem_bias = 0,
   freq_bias = 1,
   age_dep = 1,
-  obs_follower_counts,
-  obs_activity_levels,
+  obs_user_data,
   obs_init_tweets,
   sum_stats_TF = TRUE,
   diversity_TF = FALSE
@@ -24,8 +22,6 @@ twitter_ABM(
 
 \item{overall_activity}{A vector of the total of number of tweets and retweets in each timestep. The length of this vector is used to determine the number of timesteps.}
 
-\item{mu}{Probability of writing an original tweet as opposed to retweeting.}
-
 \item{cont_bias}{Variation in the salience of the attractiveness of content (only positive values, where 0 is neutrality).}
 
 \item{dem_bias}{Variation in the salience of the follower count (only positive values, where 0 is neutrality).}
@@ -34,11 +30,9 @@ twitter_ABM(
 
 \item{age_dep}{Rate of decay in age-dependent selection.}
 
-\item{obs_follower_counts}{A vector of the observed follower counts, randomly drawn for the simulated users.}
+\item{obs_user_data}{A data frame of the observed activity levels, probability of writing an original tweet as opposed to retweeting (mu), and the follower count for each user.}
 
-\item{obs_activity_levels}{A vector of the observed activity levels, randomly drawn for the simulated users.}
-
-\item{obs_init_tweets}{A vector of the observed retweet frequencies from the first timestep, randomly drawn to initialize the tweet data table.}
+\item{obs_init_tweets}{A data frame of the observed retweet frequencies from the first timestep and the user the original tweets were from (the row of the corresponding user in obs_user_data).}
 
 \item{sum_stats_TF}{Whether you want to simplify the raw data to the following summary statistics: (1) the proportion of tweets that only appear once, (2) the proportion of the most common tweet, (3) the Hill number when q = 1 (which emphasizes more rare tweets), and (4) the Hill number when q = 2 (which emphasizes more common tweets) (TRUE/FALSE).}
 
