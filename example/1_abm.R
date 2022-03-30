@@ -29,7 +29,7 @@ priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 8),
 
 #run simulations without angles
 slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
-                     nodes = 8, cpus_per_node = 25, pkgs = pkgs, global_objects = objects())
+                     nodes = 8, cpus_per_node = 25, global_objects = objects())
 
 #get output and clean files
 sum_stats <- get_slurm_out(slurm)
