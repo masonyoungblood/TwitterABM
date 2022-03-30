@@ -3,21 +3,19 @@
 #'
 #' @param N Overall population size.
 #' @param overall_activity A vector of the total of number of tweets and retweets in each timestep. The length of this vector is used to determine the number of timesteps.
-#' @param mu Probability of writing an original tweet as opposed to retweeting.
 #' @param cont_bias Variation in the salience of the attractiveness of content (only positive values, where 0 is neutrality).
 #' @param dem_bias Variation in the salience of the follower count (only positive values, where 0 is neutrality).
 #' @param freq_bias Level of frequency bias (only positive values, where < 1 is novelty and > is conformity).
 #' @param age_dep Rate of decay in age-dependent selection.
-#' @param obs_follower_counts A vector of the observed follower counts, randomly drawn for the simulated users.
-#' @param obs_activity_levels A vector of the observed activity levels, randomly drawn for the simulated users.
-#' @param obs_init_tweets A vector of the observed retweet frequencies from the first timestep, randomly drawn to initialize the tweet data table.
+#' @param obs_user_data A data frame of the observed activity levels, probability of writing an original tweet as opposed to retweeting (mu), and the follower count for each user.
+#' @param obs_init_tweets A data frame of the observed retweet frequencies from the first timestep and the user the original tweets were from (the row of the corresponding user in obs_user_data).
 #' @param sum_stats_TF Whether you want to simplify the raw data to the following summary statistics: (1) the proportion of tweets that only appear once, (2) the proportion of the most common tweet, (3) the Hill number when q = 1 (which emphasizes more rare tweets), and (4) the Hill number when q = 2 (which emphasizes more common tweets) (TRUE/FALSE).
 #' @param diversity_TF Whether you want to return the Simpson's diversity index from each timepoint (TRUE/FALSE).
 #'
 #' @return Returns one object or a list of two objects, depending on the values for sum_stats_TF and diversity_TF.
 #' @import data.table truncnorm hillR vegan
 #' @export
-twitter_ABM <- function(N = 1000, overall_activity, mu = 0.3, cont_bias = 0, dem_bias = 0, freq_bias = 1, age_dep = 1, obs_follower_counts, obs_activity_levels, obs_init_tweets, sum_stats_TF = TRUE, diversity_TF = FALSE){
+twitter_ABM <- function(N = 1000, overall_activity, cont_bias = 0, dem_bias = 0, freq_bias = 1, age_dep = 1, obs_user_data, obs_init_tweets, sum_stats_TF = TRUE, diversity_TF = FALSE){
   #optimization notes:
     #data tables used instead of data frames (set function does wonders for speed)
       #pre-allocation makes for a marginal improvement, but not much better than using rbindlist
@@ -33,17 +31,17 @@ twitter_ABM <- function(N = 1000, overall_activity, mu = 0.3, cont_bias = 0, dem
   #use the length of overall_activity to determine the number of timesteps
   t_step <- length(overall_activity)
 
-  #generate data table of users
-  users <- data.table::data.table(id = 1:N, followers = c(abs(scale(sample(obs_follower_counts, N, replace = TRUE))+1))^dem_bias, activity_level = sample(obs_activity_levels, N, replace = TRUE))
+  #generate data table of users (+1 before log transform of followers so lower bound is at 0)
+  users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = log(obs_user_data$followers+1)^dem_bias)
 
   #pre-allocate data table for tweets
   nrow_allocation <- sum(overall_activity)
   tweets <- data.table::data.table(user = rep(0, nrow_allocation), n_times = rep(0, nrow_allocation), age = rep(0, nrow_allocation), content = rep(0, nrow_allocation), followers = rep(0, nrow_allocation))
-  data.table::set(tweets, i = 1:length(obs_init_tweets), j = "user", value = sample(users$id, length(obs_init_tweets), replace = FALSE, prob = users$activity_level))
-  data.table::set(tweets, i = 1:length(obs_init_tweets), j = "n_times", value = sample(obs_init_tweets, length(obs_init_tweets), replace = TRUE))
-  data.table::set(tweets, i = 1:length(obs_init_tweets), j = "age", value = 1)
-  data.table::set(tweets, i = 1:length(obs_init_tweets), j = "content", value = truncnorm::rtruncnorm(length(obs_init_tweets), a = 0, b = Inf, mean = 1, sd = 1)^cont_bias)
-  data.table::set(tweets, i = 1:length(obs_init_tweets), j = "followers", value = users$followers[tweets$user])
+  data.table::set(tweets, i = 1:nrow(obs_init_tweets), j = "user", value = obs_init_tweets$user)
+  data.table::set(tweets, i = 1:nrow(obs_init_tweets), j = "n_times", value = obs_init_tweets$retweets)
+  data.table::set(tweets, i = 1:nrow(obs_init_tweets), j = "age", value = 1)
+  data.table::set(tweets, i = 1:nrow(obs_init_tweets), j = "content", value = truncnorm::rtruncnorm(nrow(obs_init_tweets), a = 0, b = Inf, mean = 1, sd = 1)^cont_bias)
+  data.table::set(tweets, i = 1:nrow(obs_init_tweets), j = "followers", value = users$followers[obs_init_tweets$user])
 
   if(diversity_TF){
     #generate diversity vector
@@ -63,7 +61,7 @@ twitter_ABM <- function(N = 1000, overall_activity, mu = 0.3, cont_bias = 0, dem
     probs <- (tweets$n_times[1:(fill_point-1)]^freq_bias)*(tweets$followers[1:(fill_point-1)])*(tweets$content[1:(fill_point-1)])*(1/(tweets$age[1:(fill_point-1)]^age_dep))
 
     #figure out which active users will tweet new content
-    tweet_events <- as.logical(stats::rbinom(length(active_users), 1, prob = mu))
+    tweet_events <- as.logical(stats::rbinom(length(active_users), 1, prob = users$mu[active_users]))
     num_events <- length(which(tweet_events))
 
     #get tweets to be retweeted (with replacement to allow for multiple retweets)
