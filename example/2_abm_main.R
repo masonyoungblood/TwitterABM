@@ -29,6 +29,9 @@ priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 8),
                      freq_bias = runif(n_sim, min = 0, max = 2),
                      age_dep = runif(n_sim, min = 0, max = 8))
 
+#save priors
+save(priors, file = "prior_table.RData")
+
 #run simulations without angles
 slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
                      nodes = 5, cpus_per_node = 40, global_objects = objects(),
