@@ -102,7 +102,7 @@ params <- data.frame(i = c(1:4), title = names(priors), cpus = rep(cpus, 4))
 #run simulations without angles
 slurm <- slurm_apply(random_forest_slurm, params, jobname = "abcrf",
                      nodes = 4, cpus_per_node = cpus, global_objects = objects(),
-                     slurm_options = list(mem = 0), submit = FALSE)
+                     slurm_options = list(mem = 0))
 
 #get and save output
 predictions <- get_slurm_out(slurm)
