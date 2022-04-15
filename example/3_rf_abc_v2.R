@@ -72,9 +72,12 @@ obs_stats <- data.frame(prop_rare = length(which(tweet_distribution == 1))/sum(t
 sampsize <- 0.8*nrow(sum_stats)
 
 #wrap random forest loop in a simpler function for rslurm
-random_forest_slurm <- function(i, title, cpus){
+random_forest_slurm <- function(i, title){
   #set random seed
   set.seed(i)
+
+  #detect cores
+  ncores <- parallel::detectCores()
 
   #construct data frame for random forest abc
   abcrf_data <- data.frame(param = priors[, i], sum_stats = sum_stats)
@@ -83,25 +86,22 @@ random_forest_slurm <- function(i, title, cpus){
 
   #tuning for best random forest values
   task <- makeRegrTask(data = abcrf_data, target = "param")
-  tuning <- tuneRanger(task, num.trees = 500, parameters = list(sample.fraction = sampsize/nrow(abcrf_data)), tune.parameters = c("mtry", "min.node.size"), num.threads = cpus)
+  tuning <- tuneRanger(task, num.trees = 500, parameters = list(sample.fraction = sampsize/nrow(abcrf_data)), tune.parameters = c("mtry", "min.node.size"))
 
   #run random forest with recommended values
-  reg_abcrf <- regAbcrf(formula = param ~ ., data = abcrf_data, ntree = 1000, mtry = tuning$recommended.pars$mtry, min.node.size = tuning$recommended.pars$min.node.size, sampsize = sampsize, paral = TRUE, ncores = cpus)
+  reg_abcrf <- regAbcrf(formula = param ~ ., data = abcrf_data, ntree = 1000, mtry = tuning$recommended.pars$mtry, min.node.size = tuning$recommended.pars$min.node.size, sampsize = sampsize, paral = TRUE, ncores = ncores)
 
   #return predictions
-  list(OOB_MSE = reg_abcrf$model.rf$prediction.error, OOB_NMAE = reg_abcrf$model.rf$NMAE, prediction = predict(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = cpus),
-       var_importance = sort(reg_abcrf$model.rf$variable.importance, decreasing = TRUE), tuning = tuning$recommended.pars, weights = extract_weights(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = cpus))
+  list(OOB_MSE = reg_abcrf$model.rf$prediction.error, OOB_NMAE = reg_abcrf$model.rf$NMAE, prediction = predict(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores),
+       var_importance = sort(reg_abcrf$model.rf$variable.importance, decreasing = TRUE), tuning = tuning$recommended.pars, weights = extract_weights(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores))
 }
 
-#set number of cpus per core
-cpus <- 40
-
 #set up params data frame
-params <- data.frame(i = c(1:4), title = names(priors), cpus = rep(cpus, 4))
+params <- data.frame(i = c(1:4), title = names(priors))
 
 #run simulations without angles
 slurm <- slurm_apply(random_forest_slurm, params, jobname = "abcrf",
-                     nodes = 4, cpus_per_node = cpus, global_objects = objects(),
+                     nodes = 4, global_objects = objects(),
                      slurm_options = list(mem = 0))
 
 #get and save output
