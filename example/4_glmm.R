@@ -38,9 +38,13 @@ glmm_data <- data.frame(user = as.factor(promoter_tweets$user_id),
                         negative = promoter_tweets$neg,
                         neutral = promoter_tweets$neu,
                         compound = promoter_tweets$compound,
+                        has_media = promoter_tweets$has_media,
                         length = promoter_tweets$length,
                         day = as.factor(as.Date(promoter_tweets$timestamp)),
                         hour = as.factor(lubridate::hour(promoter_tweets$timestamp)))
+
+#binarize media
+glmm_data$has_media <- ifelse(promoter_tweets$has_media == TRUE, 1, 0)
 
 #add followers and verification status
 glmm_data$followers <- promoters$followers_count[match(glmm_data$user, promoters$user_id)]
@@ -89,26 +93,38 @@ length_model <- lme4::glmer(retweets ~ scale(length) + (1|user), data = glmm_dat
 #save
 save(length_model, file = "data/glmm_output/length_model.RData")
 
+#compare model fit
+AIC(user_model, length_model)
+lmtest::lrtest(user_model, length_model)
+
+#add media as control variable
+media_model <- lme4::glmer(retweets ~ has_media + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
+
+#save
+save(media_model, file = "data/glmm_output/media_model.RData")
+
+#compare model fit
+AIC(length_model, media_model)
+lmtest::lrtest(length_model, media_model)
+
 #add followers and verification status
-follow_model <- lme4::glmer(retweets ~ scale(followers) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
-verif_model <- lme4::glmer(retweets ~ scale(verified) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
+follow_model <- lme4::glmer(retweets ~ scale(followers) + has_media + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
+verif_model <- lme4::glmer(retweets ~ verified + has_media + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
 
 #save
 save(follow_model, file = "data/glmm_output/follow_model.RData")
 save(verif_model, file = "data/glmm_output/verif_model.RData")
 
 #compare model fit
-AIC(user_model, length_model)
-lmtest::lrtest(user_model, length_model)
-
-#compare model fit
-AIC(length_model, follow_model, verif_model)
+AIC(media_model, follow_model, verif_model)
+lmtest::lrtest(media_model, follow_model)
+lmtest::lrtest(media_model, verif_model)
 lmtest::lrtest(follow_model, verif_model)
 
 #add different forms of sentiment
-comp_model <- lme4::glmer(retweets ~ scale(compound) + scale(followers) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
-neg_model <- lme4::glmer(retweets ~ scale(negative) + scale(followers) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
-posi_model <- lme4::glmer(retweets ~ scale(positive) + scale(followers) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
+comp_model <- lme4::glmer(retweets ~ scale(compound) + scale(followers) + has_media + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
+neg_model <- lme4::glmer(retweets ~ scale(negative) + scale(followers) + has_media + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
+posi_model <- lme4::glmer(retweets ~ scale(positive) + scale(followers) + has_media + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
 
 #save
 save(comp_model, file = "data/glmm_output/comp_model.RData")
@@ -119,18 +135,19 @@ save(posi_model, file = "data/glmm_output/posi_model.RData")
 AIC(follow_model, comp_model, neg_model, posi_model)
 lmtest::lrtest(posi_model, neg_model)
 lmtest::lrtest(comp_model, neg_model)
+lmtest::lrtest(comp_model, posi_model)
 
 #get AIC values for all models
-AIC(user_model, day_model, hour_model, length_model, follow_model, verif_model, comp_model, neg_model, posi_model)
+AIC(user_model, day_model, hour_model, length_model, media_model, follow_model, verif_model, comp_model, neg_model, posi_model)
 
-#best fitting has negative sentiment
-summary(neg_model)
+#best fitting has the compound score
+summary(comp_model)
 
 #re-run best model with the full dataset
-full_neg_model <- lme4::glmer(retweets ~ scale(negative) + scale(followers) + scale(length) + (1|user), data = glmm_data, family = poisson)
+full_comp_model <- lme4::glmer(retweets ~ scale(compound) + scale(followers) + has_media + scale(length) + (1|user), data = glmm_data, family = poisson)
 
 #save
-save(full_neg_model, file = "data/glmm_output/full_neg_model.RData")
+save(full_comp_model, file = "data/glmm_output/full_comp_model.RData")
 
 #check for multicollinearity problems
 car::vif(full_neg_model)
