@@ -1,11 +1,48 @@
 #load packages
 library(data.table)
-library(ggplot2)
-library(ggfortify)
 library(abcrf)
-library(EasyABC)
-library(abc)
 library(tuneRanger)
+library(rslurm)
+
+#modify function from abcrf::densityPlot.regAbcrf for weight extraction
+extract_weights <- function(object, obs, training, paral=FALSE, ncores= if(paral) max(detectCores()-1,1) else 1, ...){
+  x <- obs
+
+  mf <- match.call(expand.dots=FALSE)
+  mf <- mf[1]
+  mf$formula <- object$formula
+
+  mf$data <- training
+
+  training <- mf$data
+
+  mf[[1L]] <- as.name("model.frame")
+  mf <- eval(mf, parent.frame() )
+  mt <- attr(mf, "terms")
+  resp <- model.response(mf)
+
+  obj <- object$model.rf
+  inbag <- matrix(unlist(obj$inbag.counts, use.names=FALSE), ncol=obj$num.trees, byrow=FALSE)
+
+  obj[["origNodes"]] <- predict(obj, training, predict.all=TRUE, num.threads=ncores)$predictions
+  obj[["origObs"]] <- model.response(mf)
+
+  #####################
+
+  origObs <- obj$origObs
+  origNodes <- obj$origNodes
+
+  nodes <- predict(obj, x, predict.all=TRUE, num.threads=ncores )$predictions
+  if(is.null(dim(nodes))) nodes <- matrix(nodes, nrow=1)
+  ntree <- obj$num.trees
+  nobs <- object$model.rf$num.samples
+  nnew <- nrow(x)
+
+  weights <- abcrf:::findweights(origNodes, nodes, inbag, as.integer(nobs), as.integer(nnew), as.integer(ntree)) # cpp function call
+  weights.std <- weights/ntree
+
+  return(weights.std[, 1])
+}
 
 #load files
 results_0 <- readRDS("data/abm_output/results_0.RDS")
@@ -31,66 +68,59 @@ obs_stats <- data.frame(prop_rare = length(which(tweet_distribution == 1))/sum(t
                         hill_1 = hillR::hill_taxa(tweet_distribution, q = 1),
                         hill_2 = hillR::hill_taxa(tweet_distribution, q = 2))
 
-#detect number of cores for parallelization
-ncores <- detectCores()-1
+#logit transform all priors (functions adopted from abc package)
+logit <- function(param, logit_bounds){
+  temp <- (param - logit_bounds[1])/(logit_bounds[2] - logit_bounds[1])
+  return(log(temp/(1 - temp)))
+}
+inv_logit <- function(param, logit_bounds){
+  temp <- exp(param)/(1 + exp(param))
+  return((temp*(logit_bounds[2] - logit_bounds[1])) + logit_bounds[1])
+}
+priors[, 1] <- logit(priors[, 1], c(0, 8))
+priors[, 2] <- logit(priors[, 2], c(0, 8))
+priors[, 3] <- logit(priors[, 3], c(0, 2))
+priors[, 4] <- logit(priors[, 4], c(0, 8))
 
-#set sample size for random forest (100% of data)
+#set sample size for random forest (80% of data)
 sampsize <- 0.8*nrow(sum_stats)
 
-#construct object to hold predictions
-predictions <- list()
+#wrap random forest loop in a simpler function for rslurm
+random_forest_slurm <- function(i, title){
+  #set random seed
+  set.seed(i)
 
-#set value of i
-i <- 1
+  #detect cores
+  ncores <- 20
 
-#run the following code (between the ##########'s) in a manual loop four times
+  #construct data frame for random forest abc
+  abcrf_data <- data.frame(param = priors[, i], sum_stats = sum_stats)
+  colnames(abcrf_data)[1] <- "param"
+  colnames(obs_stats) <- colnames(abcrf_data)[-1]
 
-##########
+  #tuning for best random forest values
+  task <- makeRegrTask(data = abcrf_data, target = "param")
+  tuning <- tuneRanger(task, num.trees = 500, parameters = list(sample.fraction = sampsize/nrow(abcrf_data)), tune.parameters = c("mtry", "min.node.size"))
 
-#set random seed
-set.seed(i)
+  #run random forest with recommended values
+  reg_abcrf <- regAbcrf(formula = param ~ ., data = abcrf_data, ntree = 1000, mtry = tuning$recommended.pars$mtry, min.node.size = tuning$recommended.pars$min.node.size, sampsize = sampsize, paral = TRUE, ncores = ncores)
 
-#construct data frame for random forest abc
-abcrf_data <- data.frame(param = priors[, i], sum_stats = sum_stats)
-colnames(abcrf_data)[1] <- "param"
-colnames(obs_stats) <- colnames(abcrf_data)[-1]
+  #return predictions
+  list(OOB_MSE = reg_abcrf$model.rf$prediction.error, OOB_NMAE = reg_abcrf$model.rf$NMAE, prediction = predict(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores),
+       var_importance = sort(reg_abcrf$model.rf$variable.importance, decreasing = TRUE), tuning = tuning$recommended.pars, weights = extract_weights(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores))
+}
 
-#tuning for best random forest values
-task <- makeRegrTask(data = abcrf_data, target = "param")
-tuning <- tuneRanger(task, num.trees = 500, parameters = list(sample.fraction = sampsize/nrow(abcrf_data)), tune.parameters = c("mtry", "min.node.size"), num.threads = ncores)
+#set up params data frame
+params <- data.frame(i = c(1:4), title = names(priors))
 
-#run random forest with recommended values
-reg_abcrf <- regAbcrf(formula = param ~ ., data = abcrf_data, ntree = 1000, mtry = tuning$recommended.pars$mtry, min.node.size = tuning$recommended.pars$min.node.size, sampsize = sampsize, paral = TRUE, ncores = ncores)
+#run simulations without angles
+slurm <- slurm_apply(random_forest_slurm, params, jobname = "abcrf",
+                     nodes = 4, cpus_per_node = 1, global_objects = objects(),
+                     slurm_options = list(mem = 0))
 
-# #construct and save posterior distribution
-# densityPlot(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores, ylab = "Density", xlab = "Parameter Value", main = "Title")
-# density_plot <- recordPlot()
-
-# #collect x and y values
-# x <- density_plot[[1]][[9]][[2]][[2]]$x
-# y <- density_plot[[1]][[9]][[2]][[2]]$y
-#
-# #restrict to prior ranges (remove plotting tails)
-# if(i %in% c(1, 2, 4)){
-#   y <- y[which(x >= 0 & x <= 8)]
-#   x <- x[which(x >= 0 & x <= 8)]
-# }
-# if(i %in% c(3)){
-#   y <- y[which(x >= 0 & x <= 2)]
-#   x <- x[which(x >= 0 & x <= 2)]
-# }
-
-#add all output to the predictions object
-predictions[[i]] <- list(OOB_MSE = reg_abcrf$model.rf$prediction.error, OOB_NMAE = reg_abcrf$model.rf$NMAE, prediction = predict(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores), var_importance = sort(reg_abcrf$model.rf$variable.importance, decreasing = TRUE), tuning = tuning$recommended.pars)
-#predictions[[i]] <- list(OOB_MSE = reg_abcrf$model.rf$prediction.error, OOB_NMAE = reg_abcrf$model.rf$NMAE, prediction = predict(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores), var_importance = sort(reg_abcrf$model.rf$variable.importance, decreasing = TRUE), tuning = tuning$recommended.pars, posterior = data.frame(x, y), plot = NULL)
-#predictions[[i]]$plot <- density_plot
-
+#get and save output
+predictions <- get_slurm_out(slurm)
 save(predictions, file = "data/predictions.RData")
 
-#add 1 to i
-i <- i + 1
-
-##########
-
-#save output
-save(predictions, file = "data/predictions.RData")
+#cleanup files
+cleanup_files(slurm)
