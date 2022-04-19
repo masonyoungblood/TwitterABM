@@ -35,11 +35,17 @@ twitter_ABM_dist_slurm <- function(cont_bias, dem_bias, freq_bias, age_dep){
 #number of simulations
 n_sim <- 1000
 
+#extract posteriors
+cont_bias_post <- density(priors[, 1], weights = predictions[[1]]$weights)
+dem_bias_post <- density(priors[, 2], weights = predictions[[2]]$weights)
+freq_bias_post <- density(priors[, 3], weights = predictions[[3]]$weights)
+age_dep_post <- density(priors[, 4], weights = predictions[[4]]$weights)
+
 #sample priors from posteriors
-post_priors <- data.frame(cont_bias = sample(priors$cont_bias, n_sim, replace = TRUE, prob = predictions[[1]]$weights),
-                     dem_bias = sample(priors$dem_bias, n_sim, replace = TRUE, prob = predictions[[2]]$weights),
-                     freq_bias = sample(priors$freq_bias, n_sim, replace = TRUE, prob = predictions[[3]]$weights),
-                     age_dep = sample(priors$age_dep, n_sim, replace = TRUE, prob = predictions[[4]]$weights))
+post_priors <- data.frame(cont_bias = sample(cont_bias_post$x, n_sim, replace = TRUE, prob = cont_bias_post$y),
+                          dem_bias = sample(dem_bias_post$x, n_sim, replace = TRUE, prob = dem_bias_post$y),
+                          freq_bias = sample(freq_bias_post$x, n_sim, replace = TRUE, prob = freq_bias_post$y),
+                          age_dep = sample(age_dep_post$x, n_sim, replace = TRUE, prob = age_dep_post$y))
 
 #run simulations
 slurm <- slurm_apply(twitter_ABM_slurm, post_priors, jobname = "twitter",
