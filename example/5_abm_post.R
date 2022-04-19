@@ -36,13 +36,13 @@ twitter_ABM_dist_slurm <- function(cont_bias, dem_bias, freq_bias, age_dep){
 n_sim <- 1000
 
 #sample priors from posteriors
-priors <- data.frame(cont_bias = sample(priors$cont_bias, n_sim, replace = TRUE, prob = predictions[[1]]$weights),
+post_priors <- data.frame(cont_bias = sample(priors$cont_bias, n_sim, replace = TRUE, prob = predictions[[1]]$weights),
                      dem_bias = sample(priors$dem_bias, n_sim, replace = TRUE, prob = predictions[[2]]$weights),
                      freq_bias = sample(priors$freq_bias, n_sim, replace = TRUE, prob = predictions[[3]]$weights),
                      age_dep = sample(priors$age_dep, n_sim, replace = TRUE, prob = predictions[[4]]$weights))
 
 #run simulations
-slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
+slurm <- slurm_apply(twitter_ABM_slurm, post_priors, jobname = "twitter",
                      nodes = 5, cpus_per_node = 48, global_objects = objects(),
                      slurm_options = list(mem = 0))
 
@@ -55,7 +55,7 @@ sum_stats <- data.table(do.call(rbind, sum_stats))
 colnames(sum_stats) <- c("prop_rare", "prop_common", "hill_1", "hill_2")
 
 #run simulations again but get the distributions
-slurm <- slurm_apply(twitter_ABM_dist_slurm, priors, jobname = "twitter",
+slurm <- slurm_apply(twitter_ABM_dist_slurm, post_priors, jobname = "twitter",
                      nodes = 5, cpus_per_node = 48, global_objects = objects(),
                      slurm_options = list(mem = 0))
 
@@ -67,5 +67,5 @@ cleanup_files(slurm)
 dists <- do.call(rbind, dists)
 
 #structure and save the output
-simulations <- list(priors = priors, sum_stats = sum_stats, dists = dists)
+simulations <- list(priors = post_priors, sum_stats = sum_stats, dists = dists)
 save(simulations, file = "data/abm_output/posterior_simulations.RData")
