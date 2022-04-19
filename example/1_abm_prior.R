@@ -29,7 +29,7 @@ priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 8),
                      freq_bias = runif(n_sim, min = 0, max = 2),
                      age_dep = runif(n_sim, min = 0, max = 8))
 
-#run simulations without angles
+#run simulations
 slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
                      nodes = 4, cpus_per_node = 48, global_objects = objects())
 
@@ -43,4 +43,4 @@ colnames(sum_stats) <- c("prop_rare", "prop_common", "hill_1", "hill_2")
 
 #structure and save the output
 simulations <- list(priors = priors, sum_stats = sum_stats)
-save(simulations, file = "prior_simulations.RData")
+save(simulations, file = "data/abm_output/prior_simulations.RData")
