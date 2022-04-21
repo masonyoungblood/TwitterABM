@@ -40,4 +40,5 @@ save(priors, file = "data/abm_output/prior_simulations/prior_table.RData")
 
 #run simulations
 slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
-                     nodes = 5, cpus_per_node = 48, global_objects = objects())
+                     nodes = 5, cpus_per_node = 48, global_objects = objects(),
+                     slurm_options = list(mem = 0))
