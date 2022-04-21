@@ -15,9 +15,15 @@ load("data/overall_activity.RData")
 #wrap twitter_ABM in a simpler function for slurm
 twitter_ABM_slurm <- function(cont_bias, dem_bias, freq_bias, age_dep){
   #run full version of twitter_ABM
-  twitter_ABM(N = N, overall_activity = overall_activity,
-              cont_bias = cont_bias, dem_bias = dem_bias, freq_bias = freq_bias, age_dep = age_dep,
-              obs_user_data = obs_user_data, obs_init_tweets = obs_init_tweets)
+  dist <- twitter_ABM(N = N, overall_activity = overall_activity,
+                      cont_bias = cont_bias, dem_bias = dem_bias, freq_bias = freq_bias, age_dep = age_dep,
+                      obs_user_data = obs_user_data, obs_init_tweets = obs_init_tweets, sum_stats_TF = FALSE)$n_times
+  sum_stats <- c(length(which(dist == 1))/sum(dist),
+                 max(dist)/sum(dist),
+                 hillR::hill_taxa(dist, q = 1),
+                 hillR::hill_taxa(dist, q = 2))
+  dist <- Rfast::Sort(dist, descending = TRUE)[1:100000]
+  list(sum_stats, dist)
 }
 
 #number of simulations
@@ -31,16 +37,19 @@ priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 8),
 
 #run simulations
 slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
-                     nodes = 4, cpus_per_node = 48, global_objects = objects())
+                     nodes = 6, cpus_per_node = 48, global_objects = objects())
 
 #get output and clean files
-sum_stats <- get_slurm_out(slurm)
+output <- get_slurm_out(slurm)
 cleanup_files(slurm)
 
 #restructure summary statistics
-sum_stats <- data.table(do.call(rbind, sum_stats))
+sum_stats <- data.frame(do.call(rbind, lapply(1:length(output), function(x){output[[x]][[1]]})))
 colnames(sum_stats) <- c("prop_rare", "prop_common", "hill_1", "hill_2")
 
+#restructure distributions
+dists <- do.call(rbind, lapply(1:length(output), function(x){output[[x]][[2]]}))
+
 #structure and save the output
-simulations <- list(priors = priors, sum_stats = sum_stats)
+simulations <- list(priors = priors, sum_stats = sum_stats, dists = dists)
 save(simulations, file = "data/abm_output/prior_simulations.RData")
