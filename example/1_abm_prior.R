@@ -35,21 +35,9 @@ priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 8),
                      freq_bias = runif(n_sim, min = 0, max = 2),
                      age_dep = runif(n_sim, min = 0, max = 8))
 
+#save priors
+save(priors, file = "data/abm_output/prior_simulations/prior_table.RData")
+
 #run simulations
 slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
-                     nodes = 6, cpus_per_node = 48, global_objects = objects())
-
-#get output and clean files
-output <- get_slurm_out(slurm)
-cleanup_files(slurm)
-
-#restructure summary statistics
-sum_stats <- data.frame(do.call(rbind, lapply(1:length(output), function(x){output[[x]][[1]]})))
-colnames(sum_stats) <- c("prop_rare", "prop_common", "hill_1", "hill_2")
-
-#restructure distributions
-dists <- do.call(rbind, lapply(1:length(output), function(x){output[[x]][[2]]}))
-
-#structure and save the output
-simulations <- list(priors = priors, sum_stats = sum_stats, dists = dists)
-save(simulations, file = "data/abm_output/prior_simulations.RData")
+                     nodes = 5, cpus_per_node = 48, global_objects = objects())
