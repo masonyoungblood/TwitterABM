@@ -32,7 +32,8 @@ twitter_ABM <- function(N = 1000, overall_activity, cont_bias = 0, dem_bias = 0,
   t_step <- length(overall_activity)
 
   #generate data table of users (+2 before log transform of followers so lower bound is >0 and tweets from zero user followers are possible to retweet)
-  users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = log(obs_user_data$followers+2)^dem_bias)
+  #users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = log(obs_user_data$followers+2)^dem_bias)
+  users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = (obs_user_data$followers+1)^dem_bias)
 
   #pre-allocate data table for tweets
   nrow_allocation <- sum(overall_activity)
