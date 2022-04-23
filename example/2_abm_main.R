@@ -21,11 +21,11 @@ twitter_ABM_slurm <- function(cont_bias, dem_bias, freq_bias, age_dep){
 }
 
 #number of simulations
-n_sim <- 200000
+n_sim <- 500000
 
 #set priors
-priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 8),
-                     dem_bias = runif(n_sim, min = 0, max = 8),
+priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 4),
+                     dem_bias = runif(n_sim, min = 0, max = 4),
                      freq_bias = runif(n_sim, min = 0, max = 2),
                      age_dep = runif(n_sim, min = 0, max = 8))
 
@@ -34,5 +34,5 @@ save(priors, file = "data/abm_output/prior_table.RData")
 
 #run simulations
 slurm <- slurm_apply(twitter_ABM_slurm, priors, jobname = "twitter",
-                     nodes = 5, cpus_per_node = 40, global_objects = objects(),
+                     nodes = 5, cpus_per_node = 48, global_objects = objects(),
                      slurm_options = list(mem = 0))

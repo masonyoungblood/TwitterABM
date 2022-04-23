@@ -27,10 +27,10 @@ twitter_ABM_slurm <- function(cont_bias, dem_bias, freq_bias, age_dep){
 }
 
 #number of simulations
-n_sim <- 10000
+n_sim <- 20000
 
 #set priors
-priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 8),
+priors <- data.frame(cont_bias = runif(n_sim, min = 0, max = 4),
                      dem_bias = runif(n_sim, min = 0, max = 4),
                      freq_bias = runif(n_sim, min = 0, max = 2),
                      age_dep = runif(n_sim, min = 0, max = 8))
