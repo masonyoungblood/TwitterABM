@@ -77,13 +77,13 @@ inv_logit <- function(param, logit_bounds){
   temp <- exp(param)/(1 + exp(param))
   return((temp*(logit_bounds[2] - logit_bounds[1])) + logit_bounds[1])
 }
-priors[, 1] <- logit(priors[, 1], c(0, 8))
-priors[, 2] <- logit(priors[, 2], c(0, 8))
+priors[, 1] <- logit(priors[, 1], c(0, 4))
+priors[, 2] <- logit(priors[, 2], c(0, 4))
 priors[, 3] <- logit(priors[, 3], c(0, 2))
 priors[, 4] <- logit(priors[, 4], c(0, 8))
 
 #set sample size for random forest (100% of data)
-sampsize <- 1*nrow(sum_stats)
+sampsize <- 0.8*nrow(sum_stats)
 
 #wrap random forest loop in a simpler function for rslurm
 random_forest_slurm <- function(i, title){
@@ -100,10 +100,10 @@ random_forest_slurm <- function(i, title){
 
   #tuning for best random forest values
   task <- makeRegrTask(data = abcrf_data, target = "param")
-  tuning <- tuneRanger(task, num.trees = 100, parameters = list(sample.fraction = sampsize/nrow(abcrf_data), mtry = 2), tune.parameters = c("min.node.size"))
+  tuning <- tuneRanger(task, num.trees = 500, parameters = list(sample.fraction = sampsize/nrow(abcrf_data)), tune.parameters = c("mtry", "min.node.size"))
 
   #run random forest with recommended values
-  reg_abcrf <- regAbcrf(formula = param ~ ., data = abcrf_data, ntree = 1000, mtry = 2, min.node.size = tuning$recommended.pars$min.node.size, sampsize = sampsize, paral = TRUE, ncores = ncores)
+  reg_abcrf <- regAbcrf(formula = param ~ ., data = abcrf_data, ntree = 1000, mtry = tuning$recommended.pars$mtry, min.node.size = tuning$recommended.pars$min.node.size, sampsize = sampsize, paral = TRUE, ncores = ncores)
 
   #return predictions
   list(OOB_MSE = reg_abcrf$model.rf$prediction.error, OOB_NMAE = reg_abcrf$model.rf$NMAE, prediction = predict(object = reg_abcrf, obs = obs_stats, training = abcrf_data, paral = TRUE, ncores = ncores),
