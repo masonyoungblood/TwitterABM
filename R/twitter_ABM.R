@@ -31,8 +31,13 @@ twitter_ABM <- function(N = 1000, overall_activity, cont_bias = 0, dem_bias = 0,
   #use the length of overall_activity to determine the number of timesteps
   t_step <- length(overall_activity)
 
-  #generate data table of users (+2 before log transform of followers so lower bound is >0, and base 5 so the distribution matches that for content)
-  users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = log(obs_user_data$followers+2, base = exp(5))^dem_bias)
+  #scale and center followers to have M and SD of 1 (like content)
+  scaled_followers <- obs_user_data$followers/sd(obs_user_data$followers)
+  centered_followers <- scaled_followers+(1-mean(scaled_followers))
+
+  #generate data table of users
+  users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = centered_followers^dem_bias)
+  #users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = log(obs_user_data$followers+2, base = exp(5))^dem_bias)
   #users <- data.table::data.table(id = 1:N, activity_level = obs_user_data$activity_level, mu = obs_user_data$mu, followers = (obs_user_data$followers+1)^dem_bias)
 
   #pre-allocate data table for tweets
