@@ -36,8 +36,8 @@ twitter_ABM_dist_slurm <- function(cont_bias, dem_bias, freq_bias, age_dep){
 n_sim <- 1000
 
 #extract posteriors and trim to prior
-cont_bias_post <- density(priors[, 1], weights = predictions[[1]]$weights, from = 0, to = 8)
-dem_bias_post <- density(priors[, 2], weights = predictions[[2]]$weights, from = 0, to = 8)
+cont_bias_post <- density(priors[, 1], weights = predictions[[1]]$weights, from = 0, to = 4)
+dem_bias_post <- density(priors[, 2], weights = predictions[[2]]$weights, from = 0, to = 4)
 freq_bias_post <- density(priors[, 3], weights = predictions[[3]]$weights, from = 0, to = 2)
 age_dep_post <- density(priors[, 4], weights = predictions[[4]]$weights, from = 0, to = 8)
 

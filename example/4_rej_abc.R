@@ -28,7 +28,7 @@ obs_stats <- data.frame(prop_rare = length(which(tweet_distribution == 1))/sum(t
                         hill_2 = hillR::hill_taxa(tweet_distribution, q = 2))
 
 #set bounds of logit transformation
-logit_bounds <- matrix(data = c(0, 0, 0, 0, 8, 8, 2, 8), ncol = 2)
+logit_bounds <- matrix(data = c(0, 0, 0, 0, 4, 4, 2, 8), ncol = 2)
 
 #tolerance levels to explore
 tols <- c(0.005, 0.001, 0.0005, 0.0001, 0.00005)
