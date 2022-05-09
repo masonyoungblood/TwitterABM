@@ -8,7 +8,6 @@ results_0 <- readRDS("data/abm_output/results_0.RDS")
 results_1 <- readRDS("data/abm_output/results_1.RDS")
 results_2 <- readRDS("data/abm_output/results_2.RDS")
 results_3 <- readRDS("data/abm_output/results_3.RDS")
-results_4 <- readRDS("data/abm_output/results_4.RDS")
 load("data/abm_output/prior_table.RData")
 load("data/tweet_distribution.RData")
 
@@ -17,8 +16,7 @@ results_0 <- do.call(rbind, results_0)
 results_1 <- do.call(rbind, results_1)
 results_2 <- do.call(rbind, results_2)
 results_3 <- do.call(rbind, results_3)
-results_4 <- do.call(rbind, results_4)
-sum_stats <- do.call(rbind, list(results_0, results_1, results_2, results_3, results_4))
+sum_stats <- do.call(rbind, list(results_0, results_1, results_2, results_3))
 colnames(sum_stats) <- c("prop_rare", "prop_common", "hill_1", "hill_2")
 
 #calculate observed summary statistics
@@ -28,7 +26,7 @@ obs_stats <- data.frame(prop_rare = length(which(tweet_distribution == 1))/sum(t
                         hill_2 = hillR::hill_taxa(tweet_distribution, q = 2))
 
 #set bounds of logit transformation
-logit_bounds <- matrix(data = c(0, 0, 0, 0, 4, 4, 2, 8), ncol = 2)
+logit_bounds <- matrix(data = c(0, 0, 0, 0, 12, 4, 2, 8), ncol = 2)
 
 #tolerance levels to explore
 tols <- c(0.005, 0.001, 0.0005, 0.0001, 0.00005)

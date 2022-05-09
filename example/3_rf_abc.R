@@ -49,7 +49,6 @@ results_0 <- readRDS("data/abm_output/results_0.RDS")
 results_1 <- readRDS("data/abm_output/results_1.RDS")
 results_2 <- readRDS("data/abm_output/results_2.RDS")
 results_3 <- readRDS("data/abm_output/results_3.RDS")
-results_4 <- readRDS("data/abm_output/results_4.RDS")
 load("data/abm_output/prior_table.RData")
 load("data/tweet_distribution.RData")
 
@@ -58,8 +57,7 @@ results_0 <- do.call(rbind, results_0)
 results_1 <- do.call(rbind, results_1)
 results_2 <- do.call(rbind, results_2)
 results_3 <- do.call(rbind, results_3)
-results_4 <- do.call(rbind, results_4)
-sum_stats <- do.call(rbind, list(results_0, results_1, results_2, results_3, results_4))
+sum_stats <- do.call(rbind, list(results_0, results_1, results_2, results_3))
 colnames(sum_stats) <- c("prop_rare", "prop_common", "hill_1", "hill_2")
 
 #calculate observed summary statistics
@@ -77,13 +75,13 @@ inv_logit <- function(param, logit_bounds){
   temp <- exp(param)/(1 + exp(param))
   return((temp*(logit_bounds[2] - logit_bounds[1])) + logit_bounds[1])
 }
-priors[, 1] <- logit(priors[, 1], c(0, 4))
+priors[, 1] <- logit(priors[, 1], c(0, 12))
 priors[, 2] <- logit(priors[, 2], c(0, 4))
 priors[, 3] <- logit(priors[, 3], c(0, 2))
 priors[, 4] <- logit(priors[, 4], c(0, 8))
 
 #set sample size for random forest (100% of data)
-sampsize <- 0.8*nrow(sum_stats)
+sampsize <- 1*nrow(sum_stats)
 
 #wrap random forest loop in a simpler function for rslurm
 random_forest_slurm <- function(i, title){
@@ -100,7 +98,7 @@ random_forest_slurm <- function(i, title){
 
   #tuning for best random forest values
   task <- makeRegrTask(data = abcrf_data, target = "param")
-  tuning <- tuneRanger(task, num.trees = 500, parameters = list(sample.fraction = sampsize/nrow(abcrf_data)), tune.parameters = c("mtry", "min.node.size"))
+  tuning <- tuneRanger(task, num.trees = 100, parameters = list(sample.fraction = sampsize/nrow(abcrf_data)), tune.parameters = c("mtry", "min.node.size"))
 
   #run random forest with recommended values
   reg_abcrf <- regAbcrf(formula = param ~ ., data = abcrf_data, ntree = 1000, mtry = tuning$recommended.pars$mtry, min.node.size = tuning$recommended.pars$min.node.size, sampsize = sampsize, paral = TRUE, ncores = ncores)
@@ -113,7 +111,7 @@ random_forest_slurm <- function(i, title){
 #set up params data frame
 params <- data.frame(i = c(1:4), title = names(priors))
 
-#run simulations without angles
+#run random forest
 slurm <- slurm_apply(random_forest_slurm, params, jobname = "abcrf",
                      nodes = 4, cpus_per_node = 1, global_objects = objects(),
                      slurm_options = list(mem = 0))
