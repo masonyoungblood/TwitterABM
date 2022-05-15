@@ -29,7 +29,8 @@ quote_glmm_data <- data.frame(orig_quote = as.factor(c(rep(0, length(original_tw
                               negative = promoter_tweets$neg[c(original_tweets, quote_tweets)],
                               neutral = promoter_tweets$neu[c(original_tweets, quote_tweets)],
                               positive = promoter_tweets$pos[c(original_tweets, quote_tweets)],
-                              compound = promoter_tweets$compound[c(original_tweets, quote_tweets)])
+                              compound = promoter_tweets$compound[c(original_tweets, quote_tweets)],
+                              has_media = promoter_tweets$has_media[c(original_tweets, quote_tweets)])
 
 #construct data frame for the main glmm
 glmm_data <- data.frame(user = as.factor(promoter_tweets$user_id),
@@ -44,7 +45,8 @@ glmm_data <- data.frame(user = as.factor(promoter_tweets$user_id),
                         hour = as.factor(lubridate::hour(promoter_tweets$timestamp)))
 
 #binarize media
-glmm_data$has_media <- ifelse(promoter_tweets$has_media == TRUE, 1, 0)
+quote_glmm_data$has_media <- ifelse(quote_glmm_data$has_media == TRUE, 1, 0)
+glmm_data$has_media <- ifelse(glmm_data$has_media == TRUE, 1, 0)
 
 #add followers and verification status
 glmm_data$followers <- promoters$followers_count[match(glmm_data$user, promoters$user_id)]
@@ -79,9 +81,9 @@ save(day_model, file = "data/glmm_output/day_model.RData")
 save(hour_model, file = "data/glmm_output/hour_model.RData")
 
 #compare icc
-performance::icc(user_model) #0.612
-performance::icc(day_model) #0.098
-performance::icc(hour_model) #0.036
+performance::icc(user_model) #0.610
+performance::icc(day_model) #0.109
+performance::icc(hour_model) #0.039
 
 #compare model fit
 AIC(user_model, day_model, hour_model)
@@ -150,47 +152,47 @@ full_comp_model <- lme4::glmer(retweets ~ scale(compound) + scale(followers) + h
 save(full_comp_model, file = "data/glmm_output/full_comp_model.RData")
 
 #check for multicollinearity problems
-car::vif(full_neg_model)
+car::vif(full_comp_model)
 
 #get incidence rate ratios
-exp(fixef(full_neg_model))
-exp(confint(full_neg_model, method = "Wald"))
+exp(fixef(full_comp_model))
+exp(confint(full_comp_model, method = "Wald"))
 
 #get pseudo R squared values for the model
-MuMIn::r.squaredGLMM(full_neg_model)
+MuMIn::r.squaredGLMM(full_comp_model)
 
 #check fit of best model with dharma (run on the 10%)
-dharma_results <- simulateResiduals(fittedModel = neg_model, plot = F)
+dharma_results <- simulateResiduals(fittedModel = comp_model, plot = F)
 testDispersion(dharma_results)
 testUniformity(dharma_results)
 testZeroInflation(dharma_results)
 testOutliers(dharma_results)
 
 #for a partial specification curve analysis, run the best model with different combinations of predictors to ensure the results hold up
-check_neg_1 <- glm(retweets ~ scale(negative), data = glmm_data, family = poisson, subset = subset)
-check_neg_2 <- lme4::glmer(retweets ~ scale(negative) + (1|user), data = glmm_data, family = poisson, subset = subset)
-check_neg_3 <- lme4::glmer(retweets ~ scale(negative) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
+check_comp_1 <- glm(retweets ~ scale(compound), data = glmm_data, family = poisson, subset = subset)
+check_comp_2 <- lme4::glmer(retweets ~ scale(compound) + (1|user), data = glmm_data, family = poisson, subset = subset)
+check_comp_3 <- lme4::glmer(retweets ~ scale(compound) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
 check_follow_1 <- glm(retweets ~ scale(followers), data = glmm_data, family = poisson, subset = subset) #no convergence
 check_follow_2 <- lme4::glmer(retweets ~ scale(followers) + (1|user), data = glmm_data, family = poisson, subset = subset)
 check_follow_3 <- lme4::glmer(retweets ~ scale(followers) + scale(length) + (1|user), data = glmm_data, family = poisson, subset = subset)
 
 #save
-save(check_neg_1, file = "data/glmm_output/check_neg_1.RData")
-save(check_neg_2, file = "data/glmm_output/check_neg_2.RData")
-save(check_neg_3, file = "data/glmm_output/check_neg_3.RData")
+save(check_comp_1, file = "data/glmm_output/check_comp_1.RData")
+save(check_comp_2, file = "data/glmm_output/check_comp_2.RData")
+save(check_comp_3, file = "data/glmm_output/check_comp_3.RData")
 save(check_follow_1, file = "data/glmm_output/check_follow_1.RData")
 save(check_follow_2, file = "data/glmm_output/check_follow_2.RData")
 save(check_follow_3, file = "data/glmm_output/check_follow_3.RData")
 
 #IRRs for checks (all three neg models, full, all three follow models, full)
-check_effects <- c(exp(as.numeric(check_neg_1$coefficients[2])), exp(as.numeric(confint(check_neg_1, method = "Wald")[2,])),
-                   exp(as.numeric(fixef(check_neg_2)[2])), exp(as.numeric(confint(check_neg_2, method = "Wald")[3,])),
-                   exp(as.numeric(fixef(check_neg_3)[2])), exp(as.numeric(confint(check_neg_3, method = "Wald")[3,])),
-                   exp(as.numeric(fixef(full_neg_model)[2])), exp(as.numeric(confint(full_neg_model, method = "Wald")[3,])),
+check_effects <- c(exp(as.numeric(check_comp_1$coefficients[2])), exp(as.numeric(confint(check_comp_1, method = "Wald")[2,])),
+                   exp(as.numeric(fixef(check_comp_2)[2])), exp(as.numeric(confint(check_comp_2, method = "Wald")[3,])),
+                   exp(as.numeric(fixef(check_comp_3)[2])), exp(as.numeric(confint(check_comp_3, method = "Wald")[3,])),
+                   exp(as.numeric(fixef(full_comp_model)[2])), exp(as.numeric(confint(full_comp_model, method = "Wald")[3,])),
                    NA, c(NA, NA), #no convergence
                    exp(as.numeric(fixef(check_follow_2)[2])), exp(as.numeric(confint(check_follow_2, method = "Wald")[3,])),
                    exp(as.numeric(fixef(check_follow_3)[2])), exp(as.numeric(confint(check_follow_3, method = "Wald")[3,])),
-                   exp(as.numeric(fixef(full_neg_model)[3])), exp(as.numeric(confint(full_neg_model, method = "Wald")[4,])))
+                   exp(as.numeric(fixef(full_comp_model)[3])), exp(as.numeric(confint(full_comp_model, method = "Wald")[4,])))
 check_effects <- as.data.frame(matrix(check_effects, ncol = 3, byrow = TRUE))
 colnames(check_effects) <- c("estimate", "lower", "upper")
 check_effects$model <- factor(c(1:8))
@@ -209,7 +211,7 @@ save(target_quote_model, file = "data/glmm_output/target_quote_model.RData")
 #check icc of target
 performance::icc(target_quote_model) #0.146
 
-#add length as control
+#add length as control variable
 length_quote_model <- lme4::glmer(orig_quote ~ scale(length) + (1|target), data = quote_glmm_data, family = binomial)
 
 #save
@@ -219,12 +221,22 @@ save(length_quote_model, file = "data/glmm_output/length_quote_model.RData")
 AIC(target_quote_model, length_quote_model)
 lmtest::lrtest(target_quote_model, length_quote_model)
 
+#add media as control variable
+media_quote_model <- lme4::glmer(orig_quote ~ has_media + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
+
+#save
+save(media_quote_model, file = "data/glmm_output/media_quote_model.RData")
+
+#compare model fit
+AIC(length_quote_model, media_quote_model)
+lmtest::lrtest(length_quote_model, media_quote_model)
+
 #assess which sentiment measures best improve the fit of the model
-comp_quote_model <- lme4::glmer(orig_quote ~ scale(compound) + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
-abs_comp_quote_model <- lme4::glmer(orig_quote ~ scale(abs(compound)) + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
-neg_quote_model <- lme4::glmer(orig_quote ~ scale(negative) + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
-neu_quote_model <- lme4::glmer(orig_quote ~ scale(neutral) + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
-posi_quote_model <- lme4::glmer(orig_quote ~ scale(positive) + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
+comp_quote_model <- lme4::glmer(orig_quote ~ scale(compound) + has_media + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
+abs_comp_quote_model <- lme4::glmer(orig_quote ~ scale(abs(compound)) + has_media + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
+neg_quote_model <- lme4::glmer(orig_quote ~ scale(negative) + has_media + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
+neu_quote_model <- lme4::glmer(orig_quote ~ scale(neutral) + has_media + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
+posi_quote_model <- lme4::glmer(orig_quote ~ scale(positive) + has_media + scale(length) + (1|target), data = quote_glmm_data, family = binomial)
 
 #save
 save(comp_quote_model, file = "data/glmm_output/comp_quote_model.RData")
@@ -234,10 +246,11 @@ save(neu_quote_model, file = "data/glmm_output/neu_quote_model.RData")
 save(posi_quote_model, file = "data/glmm_output/posi_quote_model.RData")
 
 #compare model fit
-AIC(length_quote_model, comp_quote_model, abs_comp_quote_model, neg_quote_model, neu_quote_model, posi_quote_model)
+AIC(media_quote_model, comp_quote_model, abs_comp_quote_model, neg_quote_model, neu_quote_model, posi_quote_model)
+lmtest::lrtest(media_quote_model, comp_quote_model)
 
 #get AIC values for all models
-AIC(target_quote_model, length_quote_model, comp_quote_model, abs_comp_quote_model, neg_quote_model, posi_quote_model, neu_quote_model)
+AIC(target_quote_model, length_quote_model, media_quote_model, comp_quote_model, abs_comp_quote_model, neg_quote_model, posi_quote_model, neu_quote_model)
 
 #compound model is best fitting
 summary(comp_quote_model)
@@ -255,6 +268,4 @@ MuMIn::r.squaredGLMM(comp_quote_model)
 #check fit of best model with dharma
 dharma_quote_results <- simulateResiduals(fittedModel = comp_quote_model, plot = F)
 testUniformity(dharma_quote_results)
-testZeroInflation(dharma_quote_results)
-testDispersion(dharma_quote_results)
 testOutliers(dharma_quote_results)
