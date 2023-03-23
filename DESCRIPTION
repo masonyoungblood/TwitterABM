@@ -2,8 +2,6 @@ Package: TwitterABM
 Type: Package
 Title: An Agent-Based Model of Cultural Transmission on Twitter
 Version: 0.1.0
-Author: Mason Youngblood
-Maintainer: Mason Youngblood <masonyoungblood@gmail.com>
 Description: An agent-based model (ABM) of cultural transmission on Twitter that incorporates content bias, frequency bias, demonstrator bias, and the level of age-dependent selection.
 License: GPL-3
 Encoding: UTF-8
